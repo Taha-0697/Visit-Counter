@@ -1,47 +1,62 @@
 <?php
+// Include the PhpSpreadsheet library
+require 'vendor/autoload.php';
+
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
 // Get the visitor's IP address
 $ip = $_SERVER['REMOTE_ADDR'];
 
-// Database configuration
-$host = 'localhost';
-$dbname = 'visitors_count';
-$username = 'root';
-$password = '';
+// Check if the request was made using localhost or 127.0.0.1
+$isLocalhost = ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1');
 
-try {
-    // Connect to the database
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+// File path to store visit counts
+$filePath = 'ip_visits.xlsx';
 
-    // Set PDO error mode to exception
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+// Create a new Spreadsheet object
+$spreadsheet = new Spreadsheet();
 
-    // Prepare and execute the query to fetch the visit count for the IP address
-    $stmt = $pdo->prepare('SELECT visit_count FROM visits WHERE ip_address = :ip');
-    $stmt->bindParam(':ip', $ip);
-    $stmt->execute();
+// Select the active sheet
+$sheet = $spreadsheet->getActiveSheet();
 
-    $row = $stmt->fetch();
+// Set the headers
+$sheet->setCellValue('A1', 'IP Address');
+$sheet->setCellValue('B1', 'Visit Count');
 
-    if ($row) {
-        // IP address exists, increment the visit count
-        $visitCount = $row['visit_count'] + 1;
-        $stmt = $pdo->prepare('UPDATE visits SET visit_count = :visitCount WHERE ip_address = :ip');
-        $stmt->bindParam(':visitCount', $visitCount);
-        $stmt->bindParam(':ip', $ip);
-        $stmt->execute();
-    } else {
-        // IP address doesn't exist, insert a new row
-        $visitCount = 1;
-        $stmt = $pdo->prepare('INSERT INTO visits (ip_address, visit_count) VALUES (:ip, :visitCount)');
-        $stmt->bindParam(':ip', $ip);
-        $stmt->bindParam(':visitCount', $visitCount);
-        $stmt->execute();
+// Read the existing visit counts from the file, if it exists
+$visits = [];
+if (file_exists($filePath)) {
+    $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
+    $sheet = $spreadsheet->getActiveSheet();
+    
+    // Retrieve existing visit counts from the sheet
+    $rows = $sheet->toArray(null, true, true, true);
+    foreach ($rows as $row) {
+        $ipAddress = $row['A'];
+        $visitCount = $row['B'];
+        $visits[$ipAddress] = $visitCount;
     }
-
-    // Output the number of visits for the current IP address
-    echo "Total visits from your IP: " . $visitCount;
-} catch (PDOException $e) {
-    // Handle database connection errors
-    echo "Error: " . $e->getMessage();
 }
+
+if (array_key_exists($ip, $visits)) {
+    // IP address exists, increment the visit count
+    $visits[$ip]++;
+} else {
+    // IP address doesn't exist, set the visit count to 1
+    $visits[$ip] = 1;
+}
+
+// Update the visit count for the current IP address in the sheet
+$sheet->setCellValue('A'.(count($visits)+1), $ip);
+$sheet->setCellValue('B'.(count($visits)+1), $visits[$ip]);
+
+// Save the spreadsheet to the file
+$writer = new Xlsx($spreadsheet);
+$writer->save($filePath);
+
+// Output the number of visits for the current IP address
+echo "Total visits from ";
+echo $isLocalhost ? "localhost" : $ip;
+echo ": " . $visits[$ip];
 ?>
