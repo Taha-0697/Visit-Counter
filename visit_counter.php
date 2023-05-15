@@ -12,7 +12,7 @@ $ip = $_SERVER['REMOTE_ADDR'];
 $isLocalhost = ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1');
 
 // File path to store visit counts
-$filePath = 'ip_visits.xlsx';
+$filePath = 'logs.xlsx';
 
 // Create a new Spreadsheet object
 $spreadsheet = new Spreadsheet();
