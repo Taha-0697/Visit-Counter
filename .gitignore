@@ -2,7 +2,7 @@
 /vendor/
 
 # Ignore the Excel file
-/ip_visits.xlsx
+*.xlsx
 
 # Ignore Composer lock file
 /composer.lock
